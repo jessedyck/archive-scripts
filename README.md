@@ -62,6 +62,8 @@ On first run, `archive-create.sh` generates `age.key` in the current directory i
 
 **age for encryption** — simple, modern, scriptable. No key infrastructure required beyond a single key file.
 
+**zstd level 15 (default)** — good compression ratio with reasonable speed. Levels 20–22 (ultra) compress more but can be prohibitively slow for large files. The `--compression` flag lets you override if needed.
+
 ## Verifying and repairing
 
 ```bash

@@ -16,7 +16,8 @@
 #   ./archive-create.sh [options] <input-file-or-directory>
 #
 # Options:
-#   --key <keyfile>   age private key file (default: age.key in current directory)
+#   --key <keyfile>         age private key file (default: age.key in current directory)
+#   --compression <level>   zstd compression level 1-22 (default: 15; levels 20-22 are slow)
 #
 # Output (all in <input>-archive-YYYY-MM-DD/ subfolder):
 #   <BASENAME>_<NNNNN>            encrypted chunks
@@ -30,11 +31,13 @@ set -euo pipefail
 
 INPUT=""
 KEY="age.key"
+COMPRESSION=15
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --key) KEY="$2"; shift 2 ;;
-    -*)    echo "Unknown flag: $1"; exit 1 ;;
+    --key)         KEY="$2"; shift 2 ;;
+    --compression) COMPRESSION="$2"; shift 2 ;;
+    -*)            echo "Unknown flag: $1"; exit 1 ;;
     *)
       if [[ -z "$INPUT" ]]; then
         INPUT="$1"
@@ -46,7 +49,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$INPUT" ]]; then
-  echo "Usage: $0 [--key <keyfile>] <input-file-or-directory>"
+  echo "Usage: $0 [--key <keyfile>] [--compression <level>] <input-file-or-directory>"
   exit 1
 fi
 if [[ ! -e "$INPUT" ]]; then
@@ -57,8 +60,8 @@ fi
 BASENAME="$(basename "$INPUT")"
 OUTDIR="${BASENAME}-archive-$(date +%Y-%m-%d)"
 
-ZSTD_LEVEL=15
 PARITY_PERCENT=15
+[[ "$COMPRESSION" -gt 19 ]] && ZSTD_FLAGS="--ultra -${COMPRESSION}" || ZSTD_FLAGS="-${COMPRESSION}"
 
 if [[ -d "$OUTDIR" ]]; then
   echo "Error: output directory '$OUTDIR' already exists. Move or remove it first."
@@ -73,10 +76,10 @@ trap 'echo "==> Error — cleaning up intermediate files..."; rm -f "$OUTDIR/$BA
 if [ -d "$INPUT" ]; then
     echo "==> Input is a directory, creating and compressing tar archive..."
     SIZE=$(du -sk "$INPUT" | awk '{print $1*1024}')
-    tar -cf - "$INPUT" | pv -s $SIZE | zstd -"$ZSTD_LEVEL" -o "$OUTDIR/$BASENAME.zst"
+    tar -cf - "$INPUT" | pv -s $SIZE | zstd $ZSTD_FLAGS -o "$OUTDIR/$BASENAME.zst"
 else
     echo "==> Compressing..."
-    zstd -"$ZSTD_LEVEL" "$INPUT" -o "$OUTDIR/$BASENAME.zst"
+    zstd $ZSTD_FLAGS "$INPUT" -o "$OUTDIR/$BASENAME.zst"
 fi
 
 echo "==> Verifying compression..."

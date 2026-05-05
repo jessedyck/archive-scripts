@@ -30,6 +30,10 @@ echo "test data" > test.txt
 diff test.txt test.txt
 ```
 
+## Design decisions
+
+All non-obvious decisions should be documented in the **Design decisions** section of README.md. If you make a change that involves a tradeoff — a specific value, ordering, format choice, or tool selection — add an entry explaining why. This keeps the rationale accessible to future contributors and agents.
+
 ## Things to be careful about
 
 - The chunk naming format is load-bearing: `archive-restore.sh` auto-detects the basename using `grep -E '_[0-9]{5}$'` — changes to chunk naming must be reflected in both scripts
