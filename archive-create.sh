@@ -29,6 +29,8 @@
 #
 set -euo pipefail
 
+log() { echo "[$(date +%H:%M:%S)] $*"; }
+
 INPUT=""
 KEY="age.key"
 COMPRESSION=15
@@ -70,22 +72,22 @@ fi
 
 mkdir -p "$OUTDIR"
 
-trap 'echo "==> Error — cleaning up intermediate files..."; rm -f "$OUTDIR/$BASENAME.zst" "$OUTDIR/$BASENAME.zst.age"' ERR
+trap 'log "==> Error — cleaning up intermediate files..."; rm -f "$OUTDIR/$BASENAME.zst" "$OUTDIR/$BASENAME.zst.age"' ERR
 
 # Tar if directory
 if [ -d "$INPUT" ]; then
-    echo "==> Input is a directory, creating and compressing tar archive..."
+    log "==> Input is a directory, creating and compressing tar archive..."
     SIZE=$(du -sk "$INPUT" | awk '{print $1*1024}')
     tar -cf - "$INPUT" | pv -s $SIZE | zstd $ZSTD_FLAGS -o "$OUTDIR/$BASENAME.zst"
 else
-    echo "==> Compressing..."
+    log "==> Compressing..."
     zstd $ZSTD_FLAGS "$INPUT" -o "$OUTDIR/$BASENAME.zst"
 fi
 
-echo "==> Verifying compression..."
+log "==> Verifying compression..."
 zstd -t "$OUTDIR/$BASENAME.zst"
 
-echo "==> Encrypting with age..."
+log "==> Encrypting with age..."
 if [ ! -f "$KEY" ]; then
   echo "No key file found at '$KEY', generating one..."
   age-keygen -o "$KEY"
@@ -98,26 +100,26 @@ fi
 RECIPIENT="$(age-keygen -y "$KEY")"
 pv "$OUTDIR/$BASENAME.zst" | age -r "$RECIPIENT" -o "$OUTDIR/$BASENAME.zst.age"
 
-echo "==> Verifying encryption..."
+log "==> Verifying encryption..."
 age -d -i "$KEY" "$OUTDIR/$BASENAME.zst.age" > /dev/null
 
-echo "==> Splitting into 950 MB chunks..."
+log "==> Splitting into 950 MB chunks..."
 split -b 950m -a 4 "$OUTDIR/$BASENAME.zst.age" "$OUTDIR/$BASENAME.zst.age.part-"
 
-echo "==> Renaming chunks..."
+log "==> Renaming chunks..."
 SEQ=0
 for f in "$OUTDIR/$BASENAME.zst.age.part-"*; do
   mv "$f" "$OUTDIR/${BASENAME}_$(printf '%05d' $SEQ)"
   SEQ=$((SEQ + 1))
 done
 
-echo "==> Creating PAR2 parity (${PARITY_PERCENT}%)..."
+log "==> Creating PAR2 parity (${PARITY_PERCENT}%)..."
 par2 create -r"$PARITY_PERCENT" "$OUTDIR/$BASENAME.par2" "$OUTDIR/${BASENAME}_"*
 
-echo "==> Generating checksums..."
+log "==> Generating checksums..."
 (cd "$OUTDIR" && shasum -a 256 "${BASENAME}_"* "$BASENAME.par2"* > checksums.sha256)
 
-echo "==> Copying restore script..."
+log "==> Copying restore script..."
 RESTORE_SCRIPT="$(dirname "$0")/archive-restore.sh"
 if [[ -f "$RESTORE_SCRIPT" ]]; then
   cp "$RESTORE_SCRIPT" "$OUTDIR/archive-restore.sh"
@@ -125,13 +127,13 @@ else
   echo "Warning: archive-restore.sh not found at '$RESTORE_SCRIPT', skipping."
 fi
 
-echo "==> Writing key fingerprint..."
+log "==> Writing key fingerprint..."
 age-keygen -y "$KEY" > "$OUTDIR/key.pub"
 
-echo "==> Cleaning intermediate files..."
+log "==> Cleaning intermediate files..."
 rm "$OUTDIR/$BASENAME.zst" "$OUTDIR/$BASENAME.zst.age"
 
-echo "==> Done. Output folder: $OUTDIR/"
+log "==> Done. Output folder: $OUTDIR/"
 echo "Files created:"
 echo "  - $OUTDIR/${BASENAME}_NNNNN  (chunks)"
 echo "  - $OUTDIR/$BASENAME.par2"

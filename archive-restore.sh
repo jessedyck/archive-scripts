@@ -25,6 +25,8 @@
 #
 set -euo pipefail
 
+log() { echo "[$(date +%H:%M:%S)] $*"; }
+
 VERIFY=true
 INPUT_DIR=""
 OUTPUT=""
@@ -60,7 +62,7 @@ if [[ -z "$OUTPUT" ]]; then
   SAMPLE=$(ls "$INPUT_DIR/" | grep -E '_[0-9]{5}$' | head -1)
   if [[ -n "$SAMPLE" ]]; then
     OUTPUT="${SAMPLE%_*}"
-    echo "==> Auto-detected output name: $OUTPUT"
+    log "==> Auto-detected output name: $OUTPUT"
   else
     echo "Error: no chunk files found in $INPUT_DIR. Provide <output-name> as argument."
     exit 1
@@ -77,7 +79,7 @@ if [[ -e "${OUTPUT}.zst.age" || -e "${OUTPUT}.zst" || -e "${OUTPUT}" || -d "${OU
   exit 1
 fi
 
-trap 'echo "==> Error — cleaning up intermediate files..."; rm -f "${OUTPUT}.zst.age" "${OUTPUT}.zst"' ERR
+trap 'log "==> Error — cleaning up intermediate files..."; rm -f "${OUTPUT}.zst.age" "${OUTPUT}.zst"' ERR
 
 # Step 1: Verify checksums
 if $VERIFY; then
@@ -86,18 +88,18 @@ if $VERIFY; then
     echo "Error: checksums.sha256 not found in $INPUT_DIR. Use --no-verify to skip."
     exit 1
   fi
-  echo "==> Verifying checksums..."
+  log "==> Verifying checksums..."
   if ! (cd "$INPUT_DIR" && shasum -a 256 -c checksums.sha256); then
     echo "Checksum verification FAILED. Use --no-verify to skip (not recommended)."
     exit 1
   fi
-  echo "==> Checksums OK."
+  log "==> Checksums OK."
 fi
 
 # Step 2: Concatenate chunks
 # NOTE: Chunks are concatenated in sequence-number order (_00000_, _00001_, ...).
 # Bash glob expansion is lexicographic, so the glob below naturally produces the correct order.
-echo "==> Concatenating chunks from $INPUT_DIR/..."
+log "==> Concatenating chunks from $INPUT_DIR/..."
 CHUNK_COUNT=$(ls "$INPUT_DIR/" | grep -c "^${OUTPUT}_" || true)
 echo "    Found ${CHUNK_COUNT} chunk(s)."
 
@@ -105,26 +107,26 @@ TOTAL_SIZE=$(du -sk "$INPUT_DIR/${OUTPUT}_"* | awk '{sum += $1} END {print sum *
 cat "$INPUT_DIR/${OUTPUT}_"* | pv -s "$TOTAL_SIZE" > "${OUTPUT}.zst.age"
 
 # Step 3: Decrypt
-echo "==> Decrypting with age..."
+log "==> Decrypting with age..."
 pv "${OUTPUT}.zst.age" | age -d -i "$KEY" -o "${OUTPUT}.zst"
 rm "${OUTPUT}.zst.age"
 
 # Step 4: Decompress
-echo "==> Verifying decrypted archive..."
+log "==> Verifying decrypted archive..."
 zstd -t "${OUTPUT}.zst"
 
-echo "==> Decompressing with zstd..."
+log "==> Decompressing with zstd..."
 pv "${OUTPUT}.zst" | zstd -d -o "${OUTPUT}.restored"
 rm "${OUTPUT}.zst"
 
 # Step 5: Extract tar if the file looks like a tar
 if tar -tf "${OUTPUT}.restored" > /dev/null 2>&1; then
-  echo "==> Extracting tar archive..."
+  log "==> Extracting tar archive..."
   mkdir -p "${OUTPUT}.extracted"
   tar -xf "${OUTPUT}.restored" -C "${OUTPUT}.extracted"
   rm "${OUTPUT}.restored"
-  echo "==> Done. Extracted to: ${OUTPUT}.extracted/"
+  log "==> Done. Extracted to: ${OUTPUT}.extracted/"
 else
   mv "${OUTPUT}.restored" "${OUTPUT}"
-  echo "==> Done. Restored file: ${OUTPUT}"
+  log "==> Done. Restored file: ${OUTPUT}"
 fi
