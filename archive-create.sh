@@ -10,7 +10,7 @@
 #   4. Rename chunks to sequence-numbered filenames
 #   5. Create PAR2 parity
 #   6. Generate checksums
-#   7. Write README and copy restore script
+#   7. Write key fingerprint and copy restore script
 #
 # Usage:
 #   ./archive-create.sh [options] <input-file-or-directory>
@@ -22,7 +22,7 @@
 #   <BASENAME>_<NNNNN>            encrypted chunks
 #   <BASENAME>.par2               parity recovery files
 #   checksums.sha256              chunk checksums
-#   README.txt                    restoration instructions
+#   key.pub                       age public key fingerprint
 #
 # Requires: zstd, age, par2, pv  (macOS: brew install zstd age par2 pv)
 #
@@ -122,42 +122,8 @@ else
   echo "Warning: archive-restore.sh not found at '$RESTORE_SCRIPT', skipping."
 fi
 
-echo "==> Writing README..."
-RECIPIENT_PUBKEY="$(age-keygen -y "$KEY")"
-cat > "$OUTDIR/README.txt" <<EOF
-Archive: ${BASENAME}
-Created: $(date +%Y-%m-%d)
-
---- TOOLS REQUIRED FOR RESTORATION ---
-  zstd    https://github.com/facebook/zstd
-  age     https://github.com/FiloSottile/age
-  par2    https://github.com/Parchive/par2cmdline
-
-  macOS:  brew install zstd age par2
-  Linux:  apt install zstd age par2  (or equivalent)
-
---- ENCRYPTION KEY ---
-  Encrypted with age public key: ${RECIPIENT_PUBKEY}
-  Private key file: ${KEY} (keep this safe — without it, the archive cannot be decrypted)
-
---- VERIFY INTEGRITY ---
-  cd <this folder>
-  shasum -a 256 -c checksums.sha256
-
-  If files are corrupt, repair with PAR2 (up to ${PARITY_PERCENT}% loss recoverable):
-    par2 repair ${BASENAME}.par2
-
---- RESTORE ---
-  1. Verify and repair (see above)
-  2. Reassemble chunks in order:
-       cat ${BASENAME}_* > ${BASENAME}.zst.age
-  3. Decrypt:
-       age -d -i /path/to/age.key -o ${BASENAME}.zst ${BASENAME}.zst.age
-  4. Decompress:
-       zstd -d ${BASENAME}.zst -o ${BASENAME}
-  5. If original input was a directory, untar:
-       tar -xf ${BASENAME}
-EOF
+echo "==> Writing key fingerprint..."
+age-keygen -y "$KEY" > "$OUTDIR/key.pub"
 
 echo "==> Cleaning intermediate files..."
 rm "$OUTDIR/$BASENAME.zst" "$OUTDIR/$BASENAME.zst.age"
@@ -167,4 +133,5 @@ echo "Files created:"
 echo "  - $OUTDIR/${BASENAME}_NNNNN  (chunks)"
 echo "  - $OUTDIR/$BASENAME.par2"
 echo "  - $OUTDIR/checksums.sha256"
+echo "  - $OUTDIR/key.pub"
 echo "  - $OUTDIR/archive-restore.sh"

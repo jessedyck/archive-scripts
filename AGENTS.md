@@ -17,7 +17,7 @@ Two bash scripts for creating and restoring durable long-term archives. The pipe
 - Output directory: `<BASENAME>-archive-YYYY-MM-DD`
 - Both scripts use identical `while/case` arg parsing style
 - Both script headers follow the same format: description, Steps, Usage, Options, Output/Prerequisites, Requires
-- `archive-create.sh` copies `archive-restore.sh` into the output folder at runtime
+- `archive-create.sh` copies `archive-restore.sh` and writes `key.pub` into the output folder at runtime
 
 ## Testing changes
 
@@ -33,7 +33,7 @@ diff test.txt test.txt
 ## Things to be careful about
 
 - The chunk naming format is load-bearing: `archive-restore.sh` auto-detects the basename using `grep -E '_[0-9]{5}$'` — changes to chunk naming must be reflected in both scripts
-- `checksums.sha256` only covers chunks and PAR2 files — not README.txt or archive-restore.sh
+- `checksums.sha256` only covers chunks and PAR2 files — not key.pub or archive-restore.sh
 - The `age.key` file must never be committed or included in archives
 - Chunk size is 950 MB, not 1 GB — this is intentional to stay safely under cloud storage service file size limits; do not change it to `1g`
 - Compression must happen before encryption — encrypted data is pseudorandom and does not compress; reversing this order would produce much larger output

@@ -11,12 +11,12 @@ Bash scripts for creating durable, long-term archives for cloud or HDD storage. 
 - `<name>_00000`, `<name>_00001`, ... — encrypted 950 MB chunks
 - `<name>.par2` — PAR2 parity files (15% recovery redundancy)
 - `checksums.sha256` — SHA-256 checksums for all chunks and parity files
-- `README.txt` — restoration instructions with the public key fingerprint
+- `key.pub` — age public key fingerprint that was used to encrypt this archive
 - `archive-restore.sh` — copy of the restore script
 
 `archive-restore.sh` reverses the process: verifies checksums, reassembles chunks, decrypts, and decompresses.
 
-The output folder is self-contained — `archive-restore.sh` and `README.txt` are bundled inside it at creation time. You do not need this repo to restore an archive years later.
+The output folder is self-contained — `archive-restore.sh` and `key.pub` are bundled inside it at creation time. You do not need this repo to restore an archive years later.
 
 ## Dependencies
 

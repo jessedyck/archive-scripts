@@ -1,5 +1,6 @@
 # Encryption keys
 *.key
+*.pub
 
 # Archives
 *-archive-*/
