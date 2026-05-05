@@ -1,0 +1,11 @@
+# Encryption keys
+*.key
+
+# Archives
+*-archive-*/
+
+# PAR2
+*.par2
+
+# macOS
+.DS_Store
