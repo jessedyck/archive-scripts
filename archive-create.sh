@@ -102,7 +102,7 @@ echo "==> Verifying encryption..."
 age -d -i "$KEY" "$OUTDIR/$BASENAME.zst.age" > /dev/null
 
 echo "==> Splitting into 950 MB chunks..."
-split -b 950m --suffix-length=4 "$OUTDIR/$BASENAME.zst.age" "$OUTDIR/$BASENAME.zst.age.part-"
+split -b 950m -a 4 "$OUTDIR/$BASENAME.zst.age" "$OUTDIR/$BASENAME.zst.age.part-"
 
 echo "==> Renaming chunks..."
 SEQ=0
