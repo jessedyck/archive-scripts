@@ -34,6 +34,10 @@ diff test.txt test.txt
 
 All non-obvious decisions should be documented in the **Design decisions** section of README.md. If you make a change that involves a tradeoff — a specific value, ordering, format choice, or tool selection — add an entry explaining why. This keeps the rationale accessible to future contributors and agents.
 
+## Platform compatibility
+
+This script must be compatible with macOS and Linux. Prefer to use a cross-platform command rather than requiring new dependencies, failing that use a small helper function. Unless explicitly asked, new dependencies should not be added.
+
 ## Things to be careful about
 
 - The chunk naming format is load-bearing: `archive-restore.sh` auto-detects the basename using `grep -E '_[0-9]{5}$'` — changes to chunk naming must be reflected in both scripts

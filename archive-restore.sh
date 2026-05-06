@@ -26,6 +26,7 @@
 set -euo pipefail
 
 log() { echo "[$(date +%H:%M:%S)] $*"; }
+filesize() { stat -c %s "$1" 2>/dev/null || stat -f %z "$1"; }
 
 VERIFY=true
 INPUT_DIR=""
@@ -94,6 +95,8 @@ if $VERIFY; then
     exit 1
   fi
   log "==> Checksums OK."
+else
+  log "==> Skipping checksum verification (--no-verify)"
 fi
 
 # Step 2: Concatenate chunks
@@ -112,18 +115,22 @@ pv "${OUTPUT}.zst.age" | age -d -i "$KEY" -o "${OUTPUT}.zst"
 rm "${OUTPUT}.zst.age"
 
 # Step 4: Decompress
-log "==> Verifying decrypted archive..."
-zstd -t "${OUTPUT}.zst"
+if [[ "$VERIFY" == true ]]; then
+  log "==> Verifying decrypted archive..."
+  pv -s "$(filesize "${OUTPUT}.zst")" "${OUTPUT}.zst" | zstd -qt -
+else
+  log "==> Skipping decrypted archive verification (--no-verify)"
+fi
 
 log "==> Decompressing with zstd..."
-pv "${OUTPUT}.zst" | zstd -d -o "${OUTPUT}.restored"
+pv -s "$(filesize "${OUTPUT}.zst")" "${OUTPUT}.zst" | zstd -qd -o "${OUTPUT}.restored"
 rm "${OUTPUT}.zst"
 
 # Step 5: Extract tar if the file looks like a tar
 if tar -tf "${OUTPUT}.restored" > /dev/null 2>&1; then
   log "==> Extracting tar archive..."
   mkdir -p "${OUTPUT}.extracted"
-  tar -xf "${OUTPUT}.restored" -C "${OUTPUT}.extracted"
+  pv -s "$(filesize "${OUTPUT}.restored")" "${OUTPUT}.restored" | tar -xf - -C "${OUTPUT}.extracted"
   rm "${OUTPUT}.restored"
   log "==> Done. Extracted to: ${OUTPUT}.extracted/"
 else

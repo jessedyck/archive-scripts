@@ -20,8 +20,14 @@ The output folder is self-contained — `archive-restore.sh` and `key.pub` are b
 
 ## Dependencies
 
+**macOS:**
 ```
 brew install zstd age par2 pv
+```
+
+**Linux (Debian/Ubuntu):**
+```
+apt install zstd age par2 pv
 ```
 
 | Tool | Purpose |
