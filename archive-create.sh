@@ -21,6 +21,9 @@
 #   --compression <level>   zstd compression level 1-22 (default: 15; levels 20-22 are slow)
 #   --exclude <pattern>     exclude files/folders matching pattern (directory input only,
 #                            repeatable); passed through to tar --exclude
+#   --include-sockets       do not auto-exclude unix domain sockets (directory input only;
+#                            by default they are auto-detected and excluded since no tar
+#                            format can archive them)
 #
 # Output (all in <input>-archive-YYYY-MM-DD/ subfolder):
 #   <BASENAME>_<NNNNN>            encrypted chunks
@@ -39,12 +42,14 @@ INPUT=""
 KEY="age.key"
 COMPRESSION=15
 EXCLUDES=()
+INCLUDE_SOCKETS=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --key)         KEY="$2"; shift 2 ;;
-    --compression) COMPRESSION="$2"; shift 2 ;;
-    --exclude)     EXCLUDES+=("$2"); shift 2 ;;
+    --key)             KEY="$2"; shift 2 ;;
+    --compression)     COMPRESSION="$2"; shift 2 ;;
+    --exclude)         EXCLUDES+=("$2"); shift 2 ;;
+    --include-sockets) INCLUDE_SOCKETS=true; shift ;;
     -*)            echo "Unknown flag: $1"; exit 1 ;;
     *)
       if [[ -z "$INPUT" ]]; then
@@ -57,7 +62,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$INPUT" ]]; then
-  echo "Usage: $0 [--key <keyfile>] [--compression <level>] [--exclude <pattern>]... <input-file-or-directory>"
+  echo "Usage: $0 [--key <keyfile>] [--compression <level>] [--exclude <pattern>]... [--include-sockets] <input-file-or-directory>"
   exit 1
 fi
 if [[ ! -e "$INPUT" ]]; then
@@ -79,6 +84,13 @@ fi
 INPUT_TYPE="file"
 [[ -d "$INPUT" ]] && INPUT_TYPE="directory"
 
+SOCKETS=()
+if [[ "$INPUT_TYPE" == "directory" && "$INCLUDE_SOCKETS" != true ]]; then
+  while IFS= read -r sock; do
+    SOCKETS+=("$sock")
+  done < <(find "$INPUT" -type s)
+fi
+
 echo "==> Archive configuration:"
 echo "    Source:       $INPUT ($INPUT_TYPE)"
 echo "    Destination:  $OUTDIR/"
@@ -92,6 +104,16 @@ if [[ "$INPUT_TYPE" == "directory" ]]; then
     done
   else
     echo "    Exclusions:   (none)"
+  fi
+  if [[ "$INCLUDE_SOCKETS" == true ]]; then
+    echo "    Sockets:      included (--include-sockets set; tar will warn and skip natively)"
+  elif [[ ${#SOCKETS[@]} -gt 0 ]]; then
+    echo "    Sockets (cannot be archived):"
+    for sock in "${SOCKETS[@]}"; do
+      echo "      - $sock"
+    done
+  else
+    echo "    Sockets:      (none found)"
   fi
 else
   if [[ ${#EXCLUDES[@]} -gt 0 ]]; then
@@ -116,6 +138,11 @@ if [ -d "$INPUT" ]; then
     if [[ ${#EXCLUDES[@]} -gt 0 ]]; then
       for pattern in "${EXCLUDES[@]}"; do
         TAR_EXCLUDE_ARGS+=(--exclude="$pattern")
+      done
+    fi
+    if [[ ${#SOCKETS[@]} -gt 0 ]]; then
+      for sock in "${SOCKETS[@]}"; do
+        TAR_EXCLUDE_ARGS+=(--exclude="$sock")
       done
     fi
     SIZE=$(du -sk "$INPUT" | awk '{print $1*1024}')

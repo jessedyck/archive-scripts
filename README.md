@@ -46,6 +46,7 @@ apt install zstd age par2 pv
 ./archive-create.sh <file-or-directory>
 ./archive-create.sh --key ~/.config/age/my.key <file-or-directory>
 ./archive-create.sh --exclude node_modules --exclude '.cache' <directory>
+./archive-create.sh --include-sockets <directory>
 ```
 
 **Restore an archive:**
@@ -76,6 +77,8 @@ On first run, `archive-create.sh` generates `age.key` in the current directory i
 **`--exclude` passes patterns straight to `tar --exclude`, repeatable** — no custom matching logic, so exclude semantics follow whatever `tar` on the host already does. A pattern with no `/` (e.g. `--exclude node_modules`) matches that name at any depth, which covers the common "skip this cache dir wherever it appears" case on both GNU tar (Linux) and bsdtar (macOS). Only applies when the input is a directory; a warning is printed (not an error) if `--exclude` is passed for a single-file input, since it's harmless to ignore.
 
 **Configuration summary + confirmation prompt before any work starts** — archiving a large directory can take a long time, and a wrong `--key`, wrong exclusion, or wrong source path is easy to typo. Printing the full resolved configuration and requiring an explicit `y` gives one last chance to catch mistakes before the pipeline starts writing output.
+
+**Unix domain sockets are auto-detected and excluded by default** — no tar format (ustar/pax/gnu) can store a socket; it's a limitation of the tar format itself, not a specific implementation. Since inclusion is never possible, `archive-create.sh` runs `find <input> -type s` before archiving and folds every match into the tar exclude list, so the run is silent instead of spamming "pax format cannot archive sockets" once per socket — this is common with directories like `~/Library/Containers/*/Data` (Docker Desktop, etc.) that hold live IPC sockets. The scan is directory-input only and adds one extra tree walk; `--include-sockets` skips it and falls back to tar's native (noisy but harmless) skip-and-warn behavior.
 
 ## Verifying and repairing
 
