@@ -11,7 +11,7 @@
 #   5. Rename chunks to sequence-numbered filenames
 #   6. Create PAR2 parity
 #   7. Generate checksums
-#   8. Write key fingerprint and copy restore script
+#   8. Write key fingerprint, configuration summary, and copy restore script
 #
 # Usage:
 #   ./archive-create.sh [options] <input-file-or-directory>
@@ -30,6 +30,7 @@
 #   <BASENAME>.par2               parity recovery files
 #   checksums.sha256              chunk checksums
 #   key.pub                       age public key fingerprint
+#   README.txt                    configuration used to create this archive
 #
 # Requires: zstd, age, par2, pv  (macOS: brew install zstd age par2 pv)
 #
@@ -91,35 +92,42 @@ if [[ "$INPUT_TYPE" == "directory" && "$INCLUDE_SOCKETS" != true ]]; then
   done < <(find "$INPUT" -type s)
 fi
 
-echo "==> Archive configuration:"
-echo "    Source:       $INPUT ($INPUT_TYPE)"
-echo "    Destination:  $OUTDIR/"
-echo "    Key file:     $KEY"
-echo "    Compression:  $COMPRESSION"
-if [[ "$INPUT_TYPE" == "directory" ]]; then
-  if [[ ${#EXCLUDES[@]} -gt 0 ]]; then
-    echo "    Exclusions:"
-    for pattern in "${EXCLUDES[@]}"; do
-      echo "      - $pattern"
-    done
+print_config() {
+  echo "Archive configuration:"
+  echo "    Archive:      $BASENAME"
+  echo "    Created:      $(date '+%Y-%m-%d %H:%M:%S')"
+  echo "    Source:       $INPUT ($INPUT_TYPE)"
+  echo "    Destination:  $OUTDIR/"
+  echo "    Key file:     $KEY"
+  echo "    Compression:  $COMPRESSION"
+  if [[ "$INPUT_TYPE" == "directory" ]]; then
+    if [[ ${#EXCLUDES[@]} -gt 0 ]]; then
+      echo "    Exclusions:"
+      for pattern in "${EXCLUDES[@]}"; do
+        echo "      - $pattern"
+      done
+    else
+      echo "    Exclusions:   (none)"
+    fi
+    if [[ "$INCLUDE_SOCKETS" == true ]]; then
+      echo "    Sockets:      included (--include-sockets set; tar will warn and skip natively)"
+    elif [[ ${#SOCKETS[@]} -gt 0 ]]; then
+      echo "    Sockets (cannot be archived):"
+      for sock in "${SOCKETS[@]}"; do
+        echo "      - $sock"
+      done
+    else
+      echo "    Sockets:      (none found)"
+    fi
   else
-    echo "    Exclusions:   (none)"
+    if [[ ${#EXCLUDES[@]} -gt 0 ]]; then
+      echo "    Exclusions:   (ignored — input is a single file)"
+    fi
   fi
-  if [[ "$INCLUDE_SOCKETS" == true ]]; then
-    echo "    Sockets:      included (--include-sockets set; tar will warn and skip natively)"
-  elif [[ ${#SOCKETS[@]} -gt 0 ]]; then
-    echo "    Sockets (cannot be archived):"
-    for sock in "${SOCKETS[@]}"; do
-      echo "      - $sock"
-    done
-  else
-    echo "    Sockets:      (none found)"
-  fi
-else
-  if [[ ${#EXCLUDES[@]} -gt 0 ]]; then
-    echo "    Exclusions:   (ignored — input is a single file)"
-  fi
-fi
+}
+
+CONFIG_SUMMARY="$(print_config)"
+echo "==> $CONFIG_SUMMARY"
 echo ""
 read -r -p "Proceed with this configuration? [y/N] " CONFIRM
 case "$CONFIRM" in
@@ -203,6 +211,9 @@ fi
 log "==> Writing key fingerprint..."
 age-keygen -y "$KEY" > "$OUTDIR/key.pub"
 
+log "==> Writing configuration summary..."
+echo "$CONFIG_SUMMARY" > "$OUTDIR/README.txt"
+
 log "==> Cleaning intermediate files..."
 rm "$OUTDIR/$BASENAME.zst" "$OUTDIR/$BASENAME.zst.age"
 
@@ -212,4 +223,5 @@ echo "  - $OUTDIR/${BASENAME}_NNNNN  (chunks)"
 echo "  - $OUTDIR/$BASENAME.par2"
 echo "  - $OUTDIR/checksums.sha256"
 echo "  - $OUTDIR/key.pub"
+echo "  - $OUTDIR/README.txt"
 echo "  - $OUTDIR/archive-restore.sh"

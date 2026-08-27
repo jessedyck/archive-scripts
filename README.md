@@ -12,6 +12,7 @@ Bash scripts for creating durable, long-term archives for cloud or HDD storage. 
 - `<name>.par2` — PAR2 parity files (15% recovery redundancy)
 - `checksums.sha256` — SHA-256 checksums for all chunks and parity files
 - `key.pub` — age public key fingerprint that was used to encrypt this archive
+- `README.txt` — the configuration used to create this archive (source, exclusions, compression, etc.)
 - `archive-restore.sh` — copy of the restore script
 
 `archive-restore.sh` reverses the process: verifies checksums, reassembles chunks, decrypts, and decompresses.
@@ -77,6 +78,8 @@ On first run, `archive-create.sh` generates `age.key` in the current directory i
 **`--exclude` passes patterns straight to `tar --exclude`, repeatable** — no custom matching logic, so exclude semantics follow whatever `tar` on the host already does. A pattern with no `/` (e.g. `--exclude node_modules`) matches that name at any depth, which covers the common "skip this cache dir wherever it appears" case on both GNU tar (Linux) and bsdtar (macOS). Only applies when the input is a directory; a warning is printed (not an error) if `--exclude` is passed for a single-file input, since it's harmless to ignore.
 
 **Configuration summary + confirmation prompt before any work starts** — archiving a large directory can take a long time, and a wrong `--key`, wrong exclusion, or wrong source path is easy to typo. Printing the full resolved configuration and requiring an explicit `y` gives one last chance to catch mistakes before the pipeline starts writing output.
+
+**`README.txt` records the exact configuration used, not generic instructions** — an earlier version of this script wrote a static `README.txt` with restoration instructions, which was removed as redundant (it duplicated this file and `archive-restore.sh`). This `README.txt` is different: it's the resolved configuration for *this specific run* (source, exclusions, sockets skipped, compression, timestamps) — information that exists nowhere else once the archive is years old and the exact command used has been forgotten.
 
 **Unix domain sockets are auto-detected and excluded by default** — no tar format (ustar/pax/gnu) can store a socket; it's a limitation of the tar format itself, not a specific implementation. Since inclusion is never possible, `archive-create.sh` runs `find <input> -type s` before archiving and folds every match into the tar exclude list, so the run is silent instead of spamming "pax format cannot archive sockets" once per socket — this is common with directories like `~/Library/Containers/*/Data` (Docker Desktop, etc.) that hold live IPC sockets. The scan is directory-input only and adds one extra tree walk; `--include-sockets` skips it and falls back to tar's native (noisy but harmless) skip-and-warn behavior.
 
