@@ -88,6 +88,13 @@ fi
 INPUT_TYPE="file"
 [[ -d "$INPUT" ]] && INPUT_TYPE="directory"
 
+if [[ "$INPUT_TYPE" == "directory" ]]; then
+  ABS_INPUT="$(cd "$INPUT" && pwd)"
+else
+  ABS_INPUT="$(cd "$(dirname "$INPUT")" && pwd)/$(basename "$INPUT")"
+fi
+ABS_OUTDIR="$(pwd)/$OUTDIR"
+
 SOCKETS=()
 if [[ "$INPUT_TYPE" == "directory" && "$INCLUDE_SOCKETS" != true ]]; then
   log "==> Scanning for sockets to exclude (this can take a while on large directories)..."
@@ -100,8 +107,8 @@ print_config() {
   echo "Archive configuration:"
   echo "    Archive:      $BASENAME"
   echo "    Created:      $(date '+%Y-%m-%d %H:%M:%S')"
-  echo "    Source:       $INPUT ($INPUT_TYPE)"
-  echo "    Destination:  $OUTDIR/"
+  echo "    Source:       $ABS_INPUT ($INPUT_TYPE)"
+  echo "    Destination:  $ABS_OUTDIR/"
   echo "    Key file:     $KEY"
   echo "    Compression:  $COMPRESSION"
   if [[ "$INPUT_TYPE" == "directory" ]]; then
@@ -116,7 +123,7 @@ print_config() {
     if [[ "$INCLUDE_SOCKETS" == true ]]; then
       echo "    Sockets:      included (--include-sockets set; tar will warn and skip natively)"
     elif [[ ${#SOCKETS[@]} -gt 0 ]]; then
-      echo "    Sockets (cannot be archived):"
+      echo "    Sockets excluded (cannot be archived):"
       for sock in "${SOCKETS[@]}"; do
         echo "      - $sock"
       done
