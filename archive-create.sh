@@ -87,6 +87,7 @@ INPUT_TYPE="file"
 
 SOCKETS=()
 if [[ "$INPUT_TYPE" == "directory" && "$INCLUDE_SOCKETS" != true ]]; then
+  log "==> Scanning for sockets to exclude (this can take a while on large directories)..."
   while IFS= read -r sock; do
     SOCKETS+=("$sock")
   done < <(find "$INPUT" -type s)
