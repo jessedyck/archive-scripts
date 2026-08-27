@@ -24,6 +24,9 @@
 #   --include-sockets       do not auto-exclude unix domain sockets (directory input only;
 #                            by default they are auto-detected and excluded since no tar
 #                            format can archive them)
+#   --resolve-exclusions    for each --exclude pattern, list the actual paths it matches
+#                            in the configuration summary (directory input only; adds a
+#                            filesystem scan before archiving starts)
 #   -y                       skip the configuration confirmation prompt and proceed automatically
 #
 # Output (all in <input>-archive-YYYY-MM-DD/ subfolder):
@@ -45,15 +48,17 @@ KEY="age.key"
 COMPRESSION=15
 EXCLUDES=()
 INCLUDE_SOCKETS=false
+RESOLVE_EXCLUSIONS=false
 ASSUME_YES=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --key)             KEY="$2"; shift 2 ;;
-    --compression)     COMPRESSION="$2"; shift 2 ;;
-    --exclude)         EXCLUDES+=("$2"); shift 2 ;;
-    --include-sockets) INCLUDE_SOCKETS=true; shift ;;
-    -y)                ASSUME_YES=true; shift ;;
+    --key)               KEY="$2"; shift 2 ;;
+    --compression)       COMPRESSION="$2"; shift 2 ;;
+    --exclude)           EXCLUDES+=("$2"); shift 2 ;;
+    --include-sockets)   INCLUDE_SOCKETS=true; shift ;;
+    --resolve-exclusions) RESOLVE_EXCLUSIONS=true; shift ;;
+    -y)                  ASSUME_YES=true; shift ;;
     -*)            echo "Unknown flag: $1"; exit 1 ;;
     *)
       if [[ -z "$INPUT" ]]; then
@@ -66,7 +71,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$INPUT" ]]; then
-  echo "Usage: $0 [--key <keyfile>] [--compression <level>] [--exclude <pattern>]... [--include-sockets] [-y] <input-file-or-directory>"
+  echo "Usage: $0 [--key <keyfile>] [--compression <level>] [--exclude <pattern>]... [--include-sockets] [--resolve-exclusions] [-y] <input-file-or-directory>"
   exit 1
 fi
 if [[ ! -e "$INPUT" ]]; then
@@ -116,6 +121,17 @@ print_config() {
       echo "    Exclusions:"
       for pattern in "${EXCLUDES[@]}"; do
         echo "      - $pattern"
+        if [[ "$RESOLVE_EXCLUSIONS" == true ]]; then
+          local matches
+          matches="$(find "$INPUT" -path "*/$pattern" -print -prune 2>/dev/null)"
+          if [[ -n "$matches" ]]; then
+            while IFS= read -r m; do
+              echo "          -> $m"
+            done <<< "$matches"
+          else
+            echo "          (no matches found)"
+          fi
+        fi
       done
     else
       echo "    Exclusions:   (none)"
@@ -137,6 +153,9 @@ print_config() {
   fi
 }
 
+if [[ "$INPUT_TYPE" == "directory" && "$RESOLVE_EXCLUSIONS" == true && ${#EXCLUDES[@]} -gt 0 ]]; then
+  log "==> Resolving real paths for each exclusion..."
+fi
 CONFIG_SUMMARY="$(print_config)"
 echo "==> $CONFIG_SUMMARY"
 echo ""

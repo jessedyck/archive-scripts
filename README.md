@@ -49,6 +49,7 @@ apt install zstd age par2 pv
 ./archive-create.sh --exclude node_modules --exclude '.cache' <directory>
 ./archive-create.sh --include-sockets <directory>
 ./archive-create.sh -y <file-or-directory>   # skip the confirmation prompt
+./archive-create.sh --exclude cache --resolve-exclusions <directory>  # show what each --exclude actually matches
 ```
 
 **Restore an archive:**
@@ -83,6 +84,8 @@ On first run, `archive-create.sh` generates `age.key` in the current directory i
 **Source/destination in the configuration summary are resolved to absolute paths via `cd ... && pwd`, not `realpath`** — `realpath` isn't guaranteed to be preinstalled on macOS, while `cd`/`pwd`/`dirname`/`basename` are always available. This keeps a relative input like `mydir` from being ambiguous in `README.txt` years later when the archive has moved.
 
 **`README.txt` records the exact configuration used, not generic instructions** — an earlier version of this script wrote a static `README.txt` with restoration instructions, which was removed as redundant (it duplicated this file and `archive-restore.sh`). This `README.txt` is different: it's the resolved configuration for *this specific run* (source, exclusions, sockets skipped, compression, timestamps) — information that exists nowhere else once the archive is years old and the exact command used has been forgotten.
+
+**`--resolve-exclusions` shows matched paths via `find`, not by test-running tar** — a naive way to preview what `--exclude` matches would be to actually run tar (even to `/dev/null`), but that reads every file's content a second time, doubling I/O on a large source tree for what's meant to be a quick sanity check. Instead, `find "$INPUT" -path "*/$pattern" -print -prune` replicates tar's own (default `--no-anchored`) matching — a pattern matches wherever its slash-separated components appear consecutively in the path, regardless of what precedes them — and `-prune` stops descending once a match is found, so a match on `node_modules` reports the directory once instead of every file inside it. This was cross-checked against real `tar --exclude` output (comparing full vs. excluded listings) for both bare and slash-containing patterns before shipping. Off by default since it adds a filesystem scan; only runs when both `--exclude` and `--resolve-exclusions` are given.
 
 **Unix domain sockets are auto-detected and excluded by default** — no tar format (ustar/pax/gnu) can store a socket; it's a limitation of the tar format itself, not a specific implementation. Since inclusion is never possible, `archive-create.sh` runs `find <input> -type s` before archiving and folds every match into the tar exclude list, so the run is silent instead of spamming "pax format cannot archive sockets" once per socket — this is common with directories like `~/Library/Containers/*/Data` (Docker Desktop, etc.) that hold live IPC sockets. The scan is directory-input only and adds one extra tree walk; `--include-sockets` skips it and falls back to tar's native (noisy but harmless) skip-and-warn behavior.
 
