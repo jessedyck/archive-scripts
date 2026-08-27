@@ -24,6 +24,7 @@
 #   --include-sockets       do not auto-exclude unix domain sockets (directory input only;
 #                            by default they are auto-detected and excluded since no tar
 #                            format can archive them)
+#   -y                       skip the configuration confirmation prompt and proceed automatically
 #
 # Output (all in <input>-archive-YYYY-MM-DD/ subfolder):
 #   <BASENAME>_<NNNNN>            encrypted chunks
@@ -44,6 +45,7 @@ KEY="age.key"
 COMPRESSION=15
 EXCLUDES=()
 INCLUDE_SOCKETS=false
+ASSUME_YES=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -51,6 +53,7 @@ while [[ $# -gt 0 ]]; do
     --compression)     COMPRESSION="$2"; shift 2 ;;
     --exclude)         EXCLUDES+=("$2"); shift 2 ;;
     --include-sockets) INCLUDE_SOCKETS=true; shift ;;
+    -y)                ASSUME_YES=true; shift ;;
     -*)            echo "Unknown flag: $1"; exit 1 ;;
     *)
       if [[ -z "$INPUT" ]]; then
@@ -63,7 +66,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$INPUT" ]]; then
-  echo "Usage: $0 [--key <keyfile>] [--compression <level>] [--exclude <pattern>]... [--include-sockets] <input-file-or-directory>"
+  echo "Usage: $0 [--key <keyfile>] [--compression <level>] [--exclude <pattern>]... [--include-sockets] [-y] <input-file-or-directory>"
   exit 1
 fi
 if [[ ! -e "$INPUT" ]]; then
@@ -130,11 +133,15 @@ print_config() {
 CONFIG_SUMMARY="$(print_config)"
 echo "==> $CONFIG_SUMMARY"
 echo ""
-read -r -p "Proceed with this configuration? [y/N] " CONFIRM
-case "$CONFIRM" in
-  [yY]|[yY][eE][sS]) ;;
-  *) echo "Aborted."; exit 1 ;;
-esac
+if [[ "$ASSUME_YES" == true ]]; then
+  echo "-y set, proceeding automatically."
+else
+  read -r -p "Proceed with this configuration? [y/N] " CONFIRM
+  case "$CONFIRM" in
+    [yY]|[yY][eE][sS]) ;;
+    *) echo "Aborted."; exit 1 ;;
+  esac
+fi
 
 mkdir -p "$OUTDIR"
 

@@ -48,6 +48,7 @@ apt install zstd age par2 pv
 ./archive-create.sh --key ~/.config/age/my.key <file-or-directory>
 ./archive-create.sh --exclude node_modules --exclude '.cache' <directory>
 ./archive-create.sh --include-sockets <directory>
+./archive-create.sh -y <file-or-directory>   # skip the confirmation prompt
 ```
 
 **Restore an archive:**
