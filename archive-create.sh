@@ -43,6 +43,13 @@ set -euo pipefail
 log() { echo "[$(date +%H:%M:%S)] $*"; }
 filesize() { stat -c %s "$1" 2>/dev/null || stat -f %z "$1"; }
 
+# bsdtar (macOS default) probes every file with lseek(SEEK_HOLE) to detect
+# sparse regions; on network mounts or a degrading drive this call can hang
+# or time out and abort the whole archive. --no-read-sparse skips the probe.
+# GNU tar (Linux) has no such flag and never does this probe by default.
+TAR_SPARSE_ARGS=()
+tar --version 2>/dev/null | grep -qi bsdtar && TAR_SPARSE_ARGS=(--no-read-sparse)
+
 INPUT=""
 KEY="age.key"
 COMPRESSION=15
@@ -203,7 +210,7 @@ if [ -d "$INPUT" ]; then
       done
     fi
     SIZE=$(du -sk "$INPUT" | awk '{print $1*1024}')
-    tar -cf - "${TAR_EXCLUDE_ARGS[@]+"${TAR_EXCLUDE_ARGS[@]}"}" "$INPUT" | pv -s $SIZE | zstd $ZSTD_FLAGS -o "$OUTDIR/$BASENAME.zst"
+    tar -cf - "${TAR_SPARSE_ARGS[@]+"${TAR_SPARSE_ARGS[@]}"}" "${TAR_EXCLUDE_ARGS[@]+"${TAR_EXCLUDE_ARGS[@]}"}" "$INPUT" | pv -s $SIZE | zstd $ZSTD_FLAGS -o "$OUTDIR/$BASENAME.zst"
 else
     if [[ ${#EXCLUDES[@]} -gt 0 ]]; then
       log "==> Warning: --exclude has no effect on single-file input; ignoring."
