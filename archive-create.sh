@@ -122,8 +122,8 @@ print_config() {
       for pattern in "${EXCLUDES[@]}"; do
         echo "      - $pattern"
         if [[ "$RESOLVE_EXCLUSIONS" == true ]]; then
-          local matches
-          matches="$(find "$INPUT" -path "*/$pattern" -print -prune 2>/dev/null)"
+          local matches match_pattern="${pattern%/}"
+          matches="$(find "$INPUT" -path "*/$match_pattern" -print -prune 2>/dev/null)"
           if [[ -n "$matches" ]]; then
             while IFS= read -r m; do
               echo "          -> $m"
