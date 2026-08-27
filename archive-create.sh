@@ -3,14 +3,15 @@
 # archive-create.sh — Create a cloud-friendly, integrity-checked archive.
 #
 # Steps:
-#   0. (Optional) Tar if input is a directory
-#   1. Compress with zstd
-#   2. Encrypt with age
-#   3. Split into 950 MB chunks
-#   4. Rename chunks to sequence-numbered filenames
-#   5. Create PAR2 parity
-#   6. Generate checksums
-#   7. Write key fingerprint and copy restore script
+#   0. Display configuration summary and require confirmation
+#   1. (Optional) Tar if input is a directory
+#   2. Compress with zstd
+#   3. Encrypt with age
+#   4. Split into 950 MB chunks
+#   5. Rename chunks to sequence-numbered filenames
+#   6. Create PAR2 parity
+#   7. Generate checksums
+#   8. Write key fingerprint and copy restore script
 #
 # Usage:
 #   ./archive-create.sh [options] <input-file-or-directory>
@@ -74,6 +75,35 @@ if [[ -d "$OUTDIR" ]]; then
   echo "Error: output directory '$OUTDIR' already exists. Move or remove it first."
   exit 1
 fi
+
+INPUT_TYPE="file"
+[[ -d "$INPUT" ]] && INPUT_TYPE="directory"
+
+echo "==> Archive configuration:"
+echo "    Source:       $INPUT ($INPUT_TYPE)"
+echo "    Destination:  $OUTDIR/"
+echo "    Key file:     $KEY"
+echo "    Compression:  $COMPRESSION"
+if [[ "$INPUT_TYPE" == "directory" ]]; then
+  if [[ ${#EXCLUDES[@]} -gt 0 ]]; then
+    echo "    Exclusions:"
+    for pattern in "${EXCLUDES[@]}"; do
+      echo "      - $pattern"
+    done
+  else
+    echo "    Exclusions:   (none)"
+  fi
+else
+  if [[ ${#EXCLUDES[@]} -gt 0 ]]; then
+    echo "    Exclusions:   (ignored — input is a single file)"
+  fi
+fi
+echo ""
+read -r -p "Proceed with this configuration? [y/N] " CONFIRM
+case "$CONFIRM" in
+  [yY]|[yY][eE][sS]) ;;
+  *) echo "Aborted."; exit 1 ;;
+esac
 
 mkdir -p "$OUTDIR"
 

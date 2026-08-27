@@ -18,6 +18,8 @@ Bash scripts for creating durable, long-term archives for cloud or HDD storage. 
 
 The output folder is self-contained — `archive-restore.sh` and `key.pub` are bundled inside it at creation time. You do not need this repo to restore an archive years later.
 
+Before doing any work, `archive-create.sh` prints a summary of the configuration (source, destination, key file, compression, exclusions) and asks for confirmation.
+
 ## Dependencies
 
 **macOS:**
@@ -72,6 +74,8 @@ On first run, `archive-create.sh` generates `age.key` in the current directory i
 **zstd level 15 (default)** — good compression ratio with reasonable speed. Levels 20–22 (ultra) compress more but can be prohibitively slow for large files. The `--compression` flag lets you override if needed.
 
 **`--exclude` passes patterns straight to `tar --exclude`, repeatable** — no custom matching logic, so exclude semantics follow whatever `tar` on the host already does. A pattern with no `/` (e.g. `--exclude node_modules`) matches that name at any depth, which covers the common "skip this cache dir wherever it appears" case on both GNU tar (Linux) and bsdtar (macOS). Only applies when the input is a directory; a warning is printed (not an error) if `--exclude` is passed for a single-file input, since it's harmless to ignore.
+
+**Configuration summary + confirmation prompt before any work starts** — archiving a large directory can take a long time, and a wrong `--key`, wrong exclusion, or wrong source path is easy to typo. Printing the full resolved configuration and requiring an explicit `y` gives one last chance to catch mistakes before the pipeline starts writing output.
 
 ## Verifying and repairing
 
