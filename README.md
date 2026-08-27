@@ -93,6 +93,8 @@ On first run, `archive-create.sh` generates `age.key` in the current directory i
 
 **Unix domain sockets are auto-detected and excluded by default** — no tar format (ustar/pax/gnu) can store a socket; it's a limitation of the tar format itself, not a specific implementation. Since inclusion is never possible, `archive-create.sh` runs `find <input> -type s` before archiving and folds every match into the tar exclude list, so the run is silent instead of spamming "pax format cannot archive sockets" once per socket — this is common with directories like `~/Library/Containers/*/Data` (Docker Desktop, etc.) that hold live IPC sockets. The scan is directory-input only and adds one extra tree walk; `--include-sockets` skips it and falls back to tar's native (noisy but harmless) skip-and-warn behavior.
 
+**The socket scan prunes anything already covered by `--exclude`** — the socket scan and `--exclude` are independent features, but a directory matched by `--exclude` (e.g. `Library/Containers/com.docker.docker`) is never handed to tar in the first place, so sockets inside it don't need tar's socket handling at all. Without pruning, the socket scan would still walk into and report those sockets, showing up in the configuration summary as "excluded (cannot be archived)" even though the real reason they're absent from the archive is the `--exclude` pattern — misleading, and wasted I/O on large excluded trees (e.g. `node_modules`). The scan builds the same `-path "*/pattern"` prune expression used by `--resolve-exclusions` and passes it to `find ... -prune -o -type s -print` so excluded subtrees are skipped entirely rather than just filtered from the results afterward.
+
 ## Verifying and repairing
 
 ```bash

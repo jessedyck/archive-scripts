@@ -103,9 +103,22 @@ ABS_OUTDIR="$(pwd)/$OUTDIR"
 SOCKETS=()
 if [[ "$INPUT_TYPE" == "directory" && "$INCLUDE_SOCKETS" != true ]]; then
   log "==> Scanning for sockets to exclude (this can take a while on large directories)..."
-  while IFS= read -r sock; do
-    SOCKETS+=("$sock")
-  done < <(find "$INPUT" -type s)
+  PRUNE_EXPR=()
+  if [[ ${#EXCLUDES[@]} -gt 0 ]]; then
+    for pattern in "${EXCLUDES[@]}"; do
+      [[ ${#PRUNE_EXPR[@]} -gt 0 ]] && PRUNE_EXPR+=(-o)
+      PRUNE_EXPR+=(-path "*/${pattern%/}")
+    done
+  fi
+  if [[ ${#PRUNE_EXPR[@]} -gt 0 ]]; then
+    while IFS= read -r sock; do
+      SOCKETS+=("$sock")
+    done < <(find "$INPUT" \( "${PRUNE_EXPR[@]}" \) -prune -o -type s -print)
+  else
+    while IFS= read -r sock; do
+      SOCKETS+=("$sock")
+    done < <(find "$INPUT" -type s)
+  fi
 fi
 
 print_config() {
