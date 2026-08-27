@@ -43,6 +43,7 @@ apt install zstd age par2 pv
 ```bash
 ./archive-create.sh <file-or-directory>
 ./archive-create.sh --key ~/.config/age/my.key <file-or-directory>
+./archive-create.sh --exclude node_modules --exclude '.cache' <directory>
 ```
 
 **Restore an archive:**
@@ -69,6 +70,8 @@ On first run, `archive-create.sh` generates `age.key` in the current directory i
 **age for encryption** — simple, modern, scriptable. No key infrastructure required beyond a single key file.
 
 **zstd level 15 (default)** — good compression ratio with reasonable speed. Levels 20–22 (ultra) compress more but can be prohibitively slow for large files. The `--compression` flag lets you override if needed.
+
+**`--exclude` passes patterns straight to `tar --exclude`, repeatable** — no custom matching logic, so exclude semantics follow whatever `tar` on the host already does. A pattern with no `/` (e.g. `--exclude node_modules`) matches that name at any depth, which covers the common "skip this cache dir wherever it appears" case on both GNU tar (Linux) and bsdtar (macOS). Only applies when the input is a directory; a warning is printed (not an error) if `--exclude` is passed for a single-file input, since it's harmless to ignore.
 
 ## Verifying and repairing
 

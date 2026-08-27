@@ -18,6 +18,8 @@
 # Options:
 #   --key <keyfile>         age private key file (default: age.key in current directory)
 #   --compression <level>   zstd compression level 1-22 (default: 15; levels 20-22 are slow)
+#   --exclude <pattern>     exclude files/folders matching pattern (directory input only,
+#                            repeatable); passed through to tar --exclude
 #
 # Output (all in <input>-archive-YYYY-MM-DD/ subfolder):
 #   <BASENAME>_<NNNNN>            encrypted chunks
@@ -35,11 +37,13 @@ filesize() { stat -c %s "$1" 2>/dev/null || stat -f %z "$1"; }
 INPUT=""
 KEY="age.key"
 COMPRESSION=15
+EXCLUDES=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --key)         KEY="$2"; shift 2 ;;
     --compression) COMPRESSION="$2"; shift 2 ;;
+    --exclude)     EXCLUDES+=("$2"); shift 2 ;;
     -*)            echo "Unknown flag: $1"; exit 1 ;;
     *)
       if [[ -z "$INPUT" ]]; then
@@ -52,7 +56,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$INPUT" ]]; then
-  echo "Usage: $0 [--key <keyfile>] [--compression <level>] <input-file-or-directory>"
+  echo "Usage: $0 [--key <keyfile>] [--compression <level>] [--exclude <pattern>]... <input-file-or-directory>"
   exit 1
 fi
 if [[ ! -e "$INPUT" ]]; then
@@ -78,9 +82,18 @@ trap 'log "==> Error — cleaning up intermediate files..."; rm -f "$OUTDIR/$BAS
 # Tar if directory
 if [ -d "$INPUT" ]; then
     log "==> Input is a directory, creating and compressing tar archive..."
+    TAR_EXCLUDE_ARGS=()
+    if [[ ${#EXCLUDES[@]} -gt 0 ]]; then
+      for pattern in "${EXCLUDES[@]}"; do
+        TAR_EXCLUDE_ARGS+=(--exclude="$pattern")
+      done
+    fi
     SIZE=$(du -sk "$INPUT" | awk '{print $1*1024}')
-    tar -cf - "$INPUT" | pv -s $SIZE | zstd $ZSTD_FLAGS -o "$OUTDIR/$BASENAME.zst"
+    tar -cf - "${TAR_EXCLUDE_ARGS[@]+"${TAR_EXCLUDE_ARGS[@]}"}" "$INPUT" | pv -s $SIZE | zstd $ZSTD_FLAGS -o "$OUTDIR/$BASENAME.zst"
 else
+    if [[ ${#EXCLUDES[@]} -gt 0 ]]; then
+      log "==> Warning: --exclude has no effect on single-file input; ignoring."
+    fi
     log "==> Compressing..."
     pv -s "$(filesize "$INPUT")" "$INPUT" | zstd $ZSTD_FLAGS -o "$OUTDIR/$BASENAME.zst"
 fi
