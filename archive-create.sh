@@ -131,6 +131,8 @@ print_config() {
           else
             echo "          (no matches found)"
           fi
+        else
+          echo "          (not resolved — rerun with --resolve-exclusions to see matching paths)"
         fi
       done
     else
