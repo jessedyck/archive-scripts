@@ -18,6 +18,7 @@ Two bash scripts for creating and restoring durable long-term archives. The pipe
 - Both scripts use identical `while/case` arg parsing style
 - Both script headers follow the same format: description, Steps, Usage, Options, Output/Prerequisites, Requires
 - `archive-create.sh` copies `archive-restore.sh` and writes `key.pub` and `README.txt` (the configuration used to create the archive) into the output folder at runtime
+- `README.txt`'s configuration summary should capture the environment the archive was created in (platform/OS, architecture, and versions of zstd/age/par2/pv/tar/shasum), not just the run's flags — a restore attempted 10+ years later should be able to identify, and if needed replicate, the exact environment the archive was built under
 
 ## Testing changes
 
