@@ -46,3 +46,4 @@ This script must be compatible with macOS and Linux. Prefer to use a cross-platf
 - The `age.key` file must never be committed or included in archives
 - Chunk size is 950 MB, not 1 GB — this is intentional to stay safely under cloud storage service file size limits; do not change it to `1g`
 - Compression must happen before encryption — encrypted data is pseudorandom and does not compress; reversing this order would produce much larger output
+- A single file failure (permission error, transient network read, etc.) must abort the entire archive, never be skipped-and-continued — confirmed explicitly by the user. Do not make `tar` (or anything else in the pipeline) tolerant of individual-file errors, even to improve resilience against flaky sources like degrading drives or network mounts; a silently incomplete archive is worse than a run that has to be retried

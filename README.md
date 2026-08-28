@@ -65,6 +65,8 @@ On first run, `archive-create.sh` generates `age.key` in the current directory i
 
 ## Design decisions
 
+**Any error anywhere in the pipeline aborts the entire archive — single-file failures are never silently skipped** — `set -euo pipefail` plus a global `ERR` trap means one unreadable file, one bsdtar warning that happens to be fatal, one stalled network read, anything, kills the whole run and deletes the partial output. This is deliberate, confirmed explicitly rather than assumed: the alternative — skip the failing file, keep going — would produce an archive that looks complete (exits 0, checksums pass) but is silently missing content, discovered only if and when that specific file is needed during a restore, possibly years later. For a tool whose entire purpose is trustworthy long-term storage, a loud failure you have to re-run beats a quiet gap you find out about on restore day. The cost — a single bad file on a multi-hour run means starting over — is accepted, and mitigated by making failures diagnosable (see: tar stderr capture, `--no-read-sparse`) rather than by tolerating them.
+
 **950 MB chunks, not 1 GB** — many cloud storage services impose a 1 GB file size limit. 950 MB gives a safe margin below that threshold.
 
 **Chunk filenames use sequence numbers only, not content hashes** — integrity is fully covered by `checksums.sha256`. Embedding a SHA-256 hash in every filename added complexity to both scripts with no practical benefit.
