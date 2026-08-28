@@ -143,6 +143,7 @@ if [[ "$INPUT_TYPE" == "directory" && "$INCLUDE_SOCKETS" != true ]]; then
 fi
 
 print_config() {
+  local redact="${1:-false}"
   echo "Archive configuration:"
   echo "    Archive:      $BASENAME"
   echo "    Created:      $(date '+%Y-%m-%d %H:%M:%S')"
@@ -161,21 +162,28 @@ print_config() {
   if [[ "$INPUT_TYPE" == "directory" ]]; then
     if [[ ${#EXCLUDES[@]} -gt 0 ]]; then
       echo "    Exclusions:"
+      local idx=0
       for pattern in "${EXCLUDES[@]}"; do
         echo "      - $pattern"
         if [[ "$RESOLVE_EXCLUSIONS" == true ]]; then
-          local matches match_pattern="${pattern%/}"
-          matches="$(find "$INPUT" -path "*/$match_pattern" -print -prune 2>/dev/null)"
+          local matches="${EXCLUDE_MATCHES[$idx]:-}"
           if [[ -n "$matches" ]]; then
-            while IFS= read -r m; do
-              echo "          -> $m"
-            done <<< "$matches"
+            if [[ "$redact" == true ]]; then
+              local match_count
+              match_count="$(printf '%s\n' "$matches" | grep -c .)"
+              echo "          $match_count matching path(s) found (see terminal output for details)"
+            else
+              while IFS= read -r m; do
+                echo "          -> $m"
+              done <<< "$matches"
+            fi
           else
             echo "          (no matches found)"
           fi
         else
           echo "          (not resolved — rerun with --resolve-exclusions to see matching paths)"
         fi
+        idx=$((idx + 1))
       done
     else
       echo "    Exclusions:   (none)"
@@ -183,10 +191,14 @@ print_config() {
     if [[ "$INCLUDE_SOCKETS" == true ]]; then
       echo "    Sockets:      included (--include-sockets set; tar will warn and skip natively)"
     elif [[ ${#SOCKETS[@]} -gt 0 ]]; then
-      echo "    Sockets excluded (cannot be archived):"
-      for sock in "${SOCKETS[@]}"; do
-        echo "      - $sock"
-      done
+      if [[ "$redact" == true ]]; then
+        echo "    Sockets excluded (cannot be archived): ${#SOCKETS[@]} found (see terminal output for details)"
+      else
+        echo "    Sockets excluded (cannot be archived):"
+        for sock in "${SOCKETS[@]}"; do
+          echo "      - $sock"
+        done
+      fi
     else
       echo "    Sockets:      (none found)"
     fi
@@ -197,8 +209,12 @@ print_config() {
   fi
 }
 
+EXCLUDE_MATCHES=()
 if [[ "$INPUT_TYPE" == "directory" && "$RESOLVE_EXCLUSIONS" == true && ${#EXCLUDES[@]} -gt 0 ]]; then
   log "==> Resolving real paths for each exclusion..."
+  for pattern in "${EXCLUDES[@]}"; do
+    EXCLUDE_MATCHES+=("$(find "$INPUT" -path "*/${pattern%/}" -print -prune 2>/dev/null)")
+  done
 fi
 CONFIG_SUMMARY="$(print_config)"
 echo "==> $CONFIG_SUMMARY"
@@ -322,7 +338,7 @@ log "==> Writing key fingerprint..."
 age-keygen -y "$KEY" > "$OUTDIR/key.pub"
 
 log "==> Writing configuration summary..."
-echo "$CONFIG_SUMMARY" > "$OUTDIR/README.txt"
+print_config true > "$OUTDIR/README.txt"
 
 log "==> Cleaning intermediate files..."
 rm "$OUTDIR/$BASENAME.zst" "$OUTDIR/$BASENAME.zst.age"
