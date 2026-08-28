@@ -50,13 +50,6 @@ case "$(uname -s)" in
   *)      PLATFORM_NAME="$(uname -s)" ;;
 esac
 
-# bsdtar (macOS default) probes every file with lseek(SEEK_HOLE) to detect
-# sparse regions; on network mounts or a degrading drive this call can hang
-# or time out and abort the whole archive. --no-read-sparse skips the probe.
-# GNU tar (Linux) has no such flag and never does this probe by default.
-TAR_SPARSE_ARGS=()
-tar --version 2>/dev/null | grep -qi bsdtar && TAR_SPARSE_ARGS=(--no-read-sparse)
-
 # GNU du takes --exclude=PATTERN (repeatable); BSD du (macOS default) takes
 # -I mask instead. Detected at runtime so the pv progress-size estimate
 # below can honor the same --exclude patterns passed to tar.
@@ -272,7 +265,7 @@ if [ -d "$INPUT" ]; then
     # terminal unsynchronized; interleaved, they garble each other. Capture
     # tar's output separately and print it cleanly once the pipe is done.
     TAR_ERR_LOG="$(mktemp)"
-    tar -cf - "${TAR_SPARSE_ARGS[@]+"${TAR_SPARSE_ARGS[@]}"}" "${TAR_EXCLUDE_ARGS[@]+"${TAR_EXCLUDE_ARGS[@]}"}" "$INPUT" 2>"$TAR_ERR_LOG" | pv -s $SIZE | zstd $ZSTD_FLAGS -o "$OUTDIR/$BASENAME.zst"
+    tar -cf - "${TAR_EXCLUDE_ARGS[@]+"${TAR_EXCLUDE_ARGS[@]}"}" "$INPUT" 2>"$TAR_ERR_LOG" | pv -s $SIZE | zstd $ZSTD_FLAGS -o "$OUTDIR/$BASENAME.zst"
     if [[ -s "$TAR_ERR_LOG" ]]; then
       echo ""
       echo "--- tar output ---"
