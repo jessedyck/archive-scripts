@@ -51,6 +51,12 @@ tool_version() { "$1" --version 2>&1 | head -1; }
 TAR_SPARSE_ARGS=()
 tar --version 2>/dev/null | grep -qi bsdtar && TAR_SPARSE_ARGS=(--no-read-sparse)
 
+# GNU du takes --exclude=PATTERN (repeatable); BSD du (macOS default) takes
+# -I mask instead. Detected at runtime so the pv progress-size estimate
+# below can honor the same --exclude patterns passed to tar.
+DU_IS_GNU=false
+du --version 2>/dev/null | grep -qi "GNU coreutils" && DU_IS_GNU=true
+
 INPUT=""
 KEY="age.key"
 COMPRESSION=15
@@ -217,7 +223,17 @@ if [ -d "$INPUT" ]; then
         TAR_EXCLUDE_ARGS+=(--exclude="$sock")
       done
     fi
-    SIZE=$(du -sk "$INPUT" | awk '{print $1*1024}')
+    DU_EXCLUDE_ARGS=()
+    if [[ ${#EXCLUDES[@]} -gt 0 ]]; then
+      for pattern in "${EXCLUDES[@]}"; do
+        if [[ "$DU_IS_GNU" == true ]]; then
+          DU_EXCLUDE_ARGS+=(--exclude="${pattern%/}")
+        else
+          DU_EXCLUDE_ARGS+=(-I "${pattern%/}")
+        fi
+      done
+    fi
+    SIZE=$(du -sk "${DU_EXCLUDE_ARGS[@]+"${DU_EXCLUDE_ARGS[@]}"}" "$INPUT" | awk '{print $1*1024}')
     tar -cf - "${TAR_SPARSE_ARGS[@]+"${TAR_SPARSE_ARGS[@]}"}" "${TAR_EXCLUDE_ARGS[@]+"${TAR_EXCLUDE_ARGS[@]}"}" "$INPUT" | pv -s $SIZE | zstd $ZSTD_FLAGS -o "$OUTDIR/$BASENAME.zst"
 else
     if [[ ${#EXCLUDES[@]} -gt 0 ]]; then
