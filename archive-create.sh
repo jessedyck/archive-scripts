@@ -42,6 +42,7 @@ set -euo pipefail
 
 log() { echo "[$(date +%H:%M:%S)] $*"; }
 filesize() { stat -c %s "$1" 2>/dev/null || stat -f %z "$1"; }
+tool_version() { "$1" --version 2>&1 | head -1; }
 
 # bsdtar (macOS default) probes every file with lseek(SEEK_HOLE) to detect
 # sparse regions; on network mounts or a degrading drive this call can hang
@@ -136,6 +137,13 @@ print_config() {
   echo "    Destination:  $ABS_OUTDIR/"
   echo "    Key file:     $KEY"
   echo "    Compression:  $COMPRESSION"
+  echo "    Tool versions:"
+  echo "      - zstd:    $(tool_version zstd)"
+  echo "      - age:     $(tool_version age)"
+  echo "      - tar:     $(tool_version tar)"
+  echo "      - par2:    $(tool_version par2)"
+  echo "      - pv:      $(tool_version pv)"
+  echo "      - shasum:  $(tool_version shasum)"
   if [[ "$INPUT_TYPE" == "directory" ]]; then
     if [[ ${#EXCLUDES[@]} -gt 0 ]]; then
       echo "    Exclusions:"
