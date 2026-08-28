@@ -70,6 +70,7 @@ EXCLUDES=()
 INCLUDE_SOCKETS=false
 RESOLVE_EXCLUSIONS=false
 ASSUME_YES=false
+TAR_ERR_LOG=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -214,7 +215,17 @@ fi
 
 mkdir -p "$OUTDIR"
 
-trap 'log "==> Error — cleaning up intermediate files..."; rm -f "$OUTDIR/$BASENAME.zst" "$OUTDIR/$BASENAME.zst.age"' ERR
+cleanup_on_error() {
+  log "==> Error — cleaning up intermediate files..."
+  if [[ -n "$TAR_ERR_LOG" && -s "$TAR_ERR_LOG" ]]; then
+    echo ""
+    echo "--- tar output (captured separately from pv's progress line above) ---"
+    cat "$TAR_ERR_LOG"
+    echo "---"
+  fi
+  rm -f "$TAR_ERR_LOG" "$OUTDIR/$BASENAME.zst" "$OUTDIR/$BASENAME.zst.age"
+}
+trap cleanup_on_error ERR
 
 # Tar if directory
 if [ -d "$INPUT" ]; then
@@ -241,7 +252,19 @@ if [ -d "$INPUT" ]; then
       done
     fi
     SIZE=$(du -sk "${DU_EXCLUDE_ARGS[@]+"${DU_EXCLUDE_ARGS[@]}"}" "$INPUT" | awk '{print $1*1024}')
-    tar -cf - "${TAR_SPARSE_ARGS[@]+"${TAR_SPARSE_ARGS[@]}"}" "${TAR_EXCLUDE_ARGS[@]+"${TAR_EXCLUDE_ARGS[@]}"}" "$INPUT" | pv -s $SIZE | zstd $ZSTD_FLAGS -o "$OUTDIR/$BASENAME.zst"
+    # tar's stderr and pv's live-updating progress line both write to the
+    # terminal unsynchronized; interleaved, they garble each other. Capture
+    # tar's output separately and print it cleanly once the pipe is done.
+    TAR_ERR_LOG="$(mktemp)"
+    tar -cf - "${TAR_SPARSE_ARGS[@]+"${TAR_SPARSE_ARGS[@]}"}" "${TAR_EXCLUDE_ARGS[@]+"${TAR_EXCLUDE_ARGS[@]}"}" "$INPUT" 2>"$TAR_ERR_LOG" | pv -s $SIZE | zstd $ZSTD_FLAGS -o "$OUTDIR/$BASENAME.zst"
+    if [[ -s "$TAR_ERR_LOG" ]]; then
+      echo ""
+      echo "--- tar output ---"
+      cat "$TAR_ERR_LOG"
+      echo "---"
+    fi
+    rm -f "$TAR_ERR_LOG"
+    TAR_ERR_LOG=""
 else
     if [[ ${#EXCLUDES[@]} -gt 0 ]]; then
       log "==> Warning: --exclude has no effect on single-file input; ignoring."
