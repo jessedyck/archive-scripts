@@ -17,7 +17,8 @@ Two bash scripts for creating and restoring durable long-term archives. The pipe
 - Output directory: `<BASENAME>-archive-YYYY-MM-DD`
 - Both scripts use identical `while/case` arg parsing style
 - Both script headers follow the same format: description, Steps, Usage, Options, Output/Prerequisites, Requires
-- `archive-create.sh` copies `archive-restore.sh` and writes `key.pub` into the output folder at runtime
+- `archive-create.sh` copies `archive-restore.sh` and writes `key.pub` and `README.txt` (the configuration used to create the archive) into the output folder at runtime
+- `README.txt`'s configuration summary should capture the environment the archive was created in (platform/OS, architecture, and versions of zstd/age/par2/pv/tar/shasum), not just the run's flags — a restore attempted 10+ years later should be able to identify, and if needed replicate, the exact environment the archive was built under
 
 ## Testing changes
 
@@ -43,7 +44,8 @@ This script must be compatible with macOS and Linux. Prefer to use a cross-platf
 ## Things to be careful about
 
 - The chunk naming format is load-bearing: `archive-restore.sh` auto-detects the basename using `grep -E '_[0-9]{5}$'` — changes to chunk naming must be reflected in both scripts
-- `checksums.sha256` only covers chunks and PAR2 files — not key.pub or archive-restore.sh
+- `checksums.sha256` only covers chunks and PAR2 files — not key.pub, README.txt, or archive-restore.sh
 - The `age.key` file must never be committed or included in archives
 - Chunk size is 950 MB, not 1 GB — this is intentional to stay safely under cloud storage service file size limits; do not change it to `1g`
 - Compression must happen before encryption — encrypted data is pseudorandom and does not compress; reversing this order would produce much larger output
+- A single file failure (permission error, transient network read, etc.) must abort the entire archive, never be skipped-and-continued — confirmed explicitly by the user. Do not make `tar` (or anything else in the pipeline) tolerant of individual-file errors, even to improve resilience against flaky sources like degrading drives or network mounts; a silently incomplete archive is worse than a run that has to be retried
