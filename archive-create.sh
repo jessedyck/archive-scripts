@@ -312,7 +312,7 @@ for f in "$OUTDIR/$BASENAME.zst.age.part-"*; do
 done
 
 log "==> Creating PAR2 parity (${PARITY_PERCENT}%)..."
-par2 create -r"$PARITY_PERCENT" "$OUTDIR/$BASENAME.par2" "$OUTDIR/${BASENAME}_"*
+par2 create -r"$PARITY_PERCENT" -l "$OUTDIR/$BASENAME.par2" "$OUTDIR/${BASENAME}_"*
 
 log "==> Generating checksums..."
 (cd "$OUTDIR" && for f in "${BASENAME}_"* "$BASENAME.par2"*; do

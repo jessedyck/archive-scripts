@@ -73,6 +73,8 @@ On first run, `archive-create.sh` generates `age.key` in the current directory i
 
 **PAR2 at 15% parity** — protects against partial loss from bit rot or incomplete transfers on HDD or cloud storage. PAR2 is not a substitute for a second copy: it cannot recover a fully deleted or overwritten archive.
 
+**PAR2 volumes use `-l` (limit size), not the default variable/doubling scheme** — the default lets later volumes grow far larger than any single input file (tested: ~5x a chunk's size at high redundancy), risking the same 1 GB limit the 950 MB chunk size exists to avoid. `-l` caps each volume at roughly the largest protected file's size — already ≤950 MB — so no separate size constant needs to be kept in sync.
+
 **Compression before encryption** — encrypted data is pseudorandom and does not compress. Compressing first with zstd yields significantly smaller output.
 
 **age for encryption** — simple, modern, scriptable. No key infrastructure required beyond a single key file.

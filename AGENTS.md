@@ -35,6 +35,8 @@ diff test.txt test.txt
 
 All non-obvious decisions should be documented in the **Design decisions** section of README.md. If you make a change that involves a tradeoff — a specific value, ordering, format choice, or tool selection — add an entry explaining why. This keeps the rationale accessible to future contributors and agents.
 
+Keep entries succinct: one or two sentences stating the decision and the key reason. Leave out step-by-step investigation detail, test numbers, or alternatives considered — that belongs in the commit message, not the README.
+
 ## Platform compatibility
 
 This script must be compatible with macOS and Linux. Prefer to use a cross-platform command rather than requiring new dependencies, failing that use a small helper function. Unless explicitly asked, new dependencies should not be added.
