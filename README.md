@@ -50,6 +50,7 @@ apt install zstd age par2 pv
 ./archive-create.sh --include-sockets <directory>
 ./archive-create.sh -y <file-or-directory>   # skip the confirmation prompt
 ./archive-create.sh --exclude cache --resolve-exclusions <directory>  # show what each --exclude actually matches
+./archive-create.sh --exclude 'Library/Caches' --exclude 'Library/Containers/com.docker.docker' --exclude 'HUAQ24HBR6.dev.orbstack/data/data.img.raw' --exclude 'Claude/vm_bundles/claudevm.bundle/rootfs.img' --resolve-exclusions ~   # back up a home folder, skipping caches and large VM disk images
 ```
 
 **Restore an archive:**
